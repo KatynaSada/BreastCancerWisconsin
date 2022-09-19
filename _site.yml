@@ -1,12 +1,10 @@
-name: "BreastCancerWisconsin"
+name: "my-website"
 output_dir: "docs"
 navbar:
-  title: "DBREAST CANCER WISCONSIN DATA SET"
+  title: "BREAST CANCER WISCONSIN DATA SET"
   left:
     - text: "Home"
       href: BreastCancerWisconsin.html
-    - text: "About"
-      href: about.html
 output:
   html_document:
     theme: cosmo
