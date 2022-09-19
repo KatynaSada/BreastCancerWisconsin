@@ -2,4 +2,4 @@
 title: "BREAST CANCER WISCONSIN"
 ---
 
-The aim of this project is to develop an algorithm that correctly predicts if a `sample of breast cancer cell nucleus is benig or malignant`. The aforementioned is going to be performed by comparing various machine learning algorithms taking into account its accuracy and its time of execution. 
+The objective of this project is to develop an algorithm that correctly predicts whether a `breast cancer cell nucleus sample is benign or malignant`. For this purpose, several machine learning algorithms will be compared taking into account their accuracy and execution time. 
