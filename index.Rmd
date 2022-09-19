@@ -1,5 +1,5 @@
 ---
-title: "BREAST CANCER WISCONSIN DATA SET"
+title: "BREAST CANCER WISCONSIN"
 ---
 
 Hello, Website!

@@ -1,28 +1,671 @@
 ---
-title: "BREAST CANCER WISCONSIN DATA SET."
-output: html_document
+title: BREAST CANCER WISCONSIN DATA SET. 
+author: "Katyna Sada"
+date: "2/17/2021"
+output:
+  rmdformats::downcute:
+    self_contained: true
+    thumbnails: false
+    lightbox: true
+    gallery: false
+    highlight: tango
 ---
+<style>
+p {
+    font-size: 16px;
+    line-height: 24px;
+    margin: 0px 0px 12px 0px;
+}
+
+  h1 {
+    font-weight: bold;
+    color: #9F2042;
+}
+
+  h2 {
+    font-weight: bold;
+    color: #555555;
+}
+
+
+h3, h4, h5, h6, legend {
+    font-weight: bold;
+    color: #999999;
+}
+</style>
+
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(rmdformats)
+library(DT)
+knitr::opts_chunk$set(include = FALSE)
+options("citation_format" = "pandoc")
+# `highlight` , https://github.com/juba/rmdformats
 ```
 
-## R Markdown
+# 1. Introduction
+<img src="./files/imagen1.jpg" align="right" /><p>Cancer is the second leading cause of death globally. In 2018 there were approximately 9,6 million deaths worldwide.These numbers are rising and on 2040 the expectation is to have up to 29,5 million new cases. Regardless of the type of cancer present, cancer cells are distinguished for growing out of control and becoming invasive [(WHO)](https://www.who.int/news-room/fact-sheets/detail/cancer). They harness the space and nutrients that healthy organs require, that could then trigger the malfunctioning of certain body systems [(NIH)](https://www.cancer.gov/about- cancer/advanced-cancer/care-choices/care-fact-sheet). 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Breast cancer is a type of cancer that starts in the breast and occurs almost entirely in women, `2,1 million of new cases` were estimated on 2018 [(WHO)](https://www.who.int/news-room/fact-sheets/detail/cancer). A total of `44,130 deaths` from breast cancer are estimated to occur on 2021. [(ASCO)](https://www.cancer.net/cancer-types/breast-cancer/statistics#:~:text=It%20is%20estimated%20that%2044%2C130,after%20the%20cancer%20is%20found.).
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+There is a need to search for new techniques in order to correctly diagnose and treat breast cancer. 
 
-```{r cars}
-summary(cars)
+The aim of this project is to develop an algorithm that correctly predicts if a `sample of breast cancer cell nucleus is benig or malignant`. The aforementioned is going to be performed by comparing various machine learning algorithms taking into account its accuracy and its time of execution. 
+
+# 2. Dataset 
+This dataset is hosted on Kaggle ([Breast Cancer Wisconsin (Diagnostic) Data Set](https://www.kaggle.com/uciml/breast-cancer-wisconsin-data)), and it was from [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+%28Diagnostic%29). 
+
+The dataset contains `30 features` plus the ID number and diagnosis of the participants. 
+The features were computed by measuring 10 parameters on each cell nucleus from a digitized image of a fine needle aspirate (FNA) of a breast mass. For each parameter, `the mean, standard error and "worst"` (mean of the three largest values) were obtained.
+
+> A breast fine needle aspiration (FNA) removes some fluid or cells from a breast lesion (a cyst, lump, sore or swelling) with a fine needle similar to that used for blood tests. The sample of fluid or cells (or tissue) is then examined [(Borecky)](https://www.insideradiology.com.au/breast-fna/).
+
+`Real-valued features`:
+
+  1) *radius* (mean of distances from center to points on the perimeter)
+  2) *texture* (standard deviation of gray-scale values)
+  3) *perimeter*
+  4) *area*
+  5) *smoothness* (local variation in radius lengths)
+  6) *compactness* (perimeter^2 / area - 1.0)
+  7) *concavity* (severity of concave portions of the contour)
+  8) *concave points* (number of concave portions of the contour)
+  9) *symmetry*
+  10) *fractal dimension* ("coastline approximation" - 1)
+
+
+The main libraries required for the development of this project are shown on the chunk below. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+# Libraries
+library(rpart.plot)
+library(tidyverse)
+library(skimr)
+library(ggpubr)
+
+# Helper packages
+library(ggplot2)  # for awesome graphics
+library(dplyr)    # for data manipulation
+library(visdat)   # for additional visualizations
+
+# Feature engineering packages
+library(caret)    # for various ML tasks
+library(recipes)  # for feature engineering tasks
+library(gridExtra)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+The database used can be visualized with the table shown below. 
+The sample ID and an empty column were eliminated as they have no relevance in the experiment. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+# Read the data
+data <- read.csv('./files/data.csv')
+datatable(data, class = 'cell-border stripe')
+data <- data[,-c(1,33)] # delete id and empty column
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# 3. Exploratory data analysis
+## Variable type
+First, a descriptive exploration of the variables was performed in order to understand them better and detect possible problems. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+skim(data)
+```
+After visually analyzing the distribuitions of all the features, `no abnormalities` seem to be found.
+Other than the target variable, which is a factor, all variables are numeric. The type of variable is correctly assigned to all features.  
+In addition, there are `no missing values`. 
+
+## Dataset features
+### Target variable
+The target variable indicates whether the cancer is benign (B) or malignant (M). As seen before, there are `357 benign` samples and `212 malignant` samples.
+```{r fig.height=2, fig.width=2, message=FALSE, warning=FALSE, include=TRUE}
+
+
+ggplot(data, aes(diagnosis, fill=diagnosis)) + 
+  geom_bar() +
+  labs(x="Diagnosis", y="Number of patients") +
+  guides(fill=FALSE) +
+  scale_fill_manual( values = c("#686868","#9F2042"))
+```
+
+Posteriorly, boxplots of all the features were created in order to visualize its importance on classification. 
+These boxplots are grouped in mean, standard deviation and "worse".
+
+### `Mean` BOXPLOTS
+Other than the fractal_dimension_mean boxplot, there seems to be a `significant difference` in the value off all features when comparing benign and malignant samples. 
+There are many samples that seem to have `outliers` in the features values. 
+In addition, the `range of values` varies a lot between features. For example, the mean area of a sample can have a maximum value of 2500 while the highest fractal dimension of a sample doesn't reach 0,1.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+library(gridExtra)
+p <- list()
+for (j in colnames(data)[2:11]) {
+  p[[j]] <- ggplot(data=data, aes_string(x="diagnosis", y=j)) + 
+            geom_boxplot(aes(fill=factor(diagnosis))) + guides(fill=FALSE) +
+            theme(axis.title.y = element_text(size=8)) +  
+            geom_jitter(alpha = 0.2, width = 0.2) +
+            scale_fill_manual( values = c("#686868","#9F2042"))
+}
+do.call(grid.arrange, c(p, ncol=5))
+```
+
+### `Standard Error` BOXPLOTS
+The standard deviation features show `less difference` between classes. As before, there are many outliers present.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+p <- list()
+for (j in colnames(data)[12:21]) {
+  p[[j]] <- ggplot(data=data, aes_string(x="diagnosis", y=j)) + 
+            geom_boxplot(aes(fill=factor(diagnosis))) + guides(fill=FALSE) +
+            theme(axis.title.y = element_text(size=8)) +  
+            geom_jitter(alpha = 0.2, width = 0.2) +
+            scale_fill_manual( values = c("#686868","#9F2042"))
+}
+do.call(grid.arrange, c(p, ncol=5))
+```
+
+### `"Worst"` BOXPLOTS
+The "worst" features show a similar behaviour as that of the mean features.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+p <- list()
+for (j in colnames(data)[22:31]) {
+  p[[j]] <- ggplot(data=data, aes_string(x="diagnosis", y=j)) + 
+            geom_boxplot(aes(fill=factor(diagnosis))) + guides(fill=FALSE) +
+            theme(axis.title.y = element_text(size=8)) +  
+            geom_jitter(alpha = 0.2, width = 0.2) +
+            scale_fill_manual( values = c("#686868","#9F2042"))
+}
+do.call(grid.arrange, c(p, ncol=5))
+```
+
+### Correlation
+Because of the source of the features, a correlation is obviously expected. 
+As seen on the `correlation heatmap` the highest correlation is found between the perimeter, area and radious.
+```{r fig.height=7, fig.width=7, message=FALSE, warning=FALSE, include=TRUE}
+library(pheatmap)
+pheatmap(cor(data[,-1]))
+```
+
+
+# 4. Division of data in training and testing & data preprocessing
+## Stratified sampling
+As seen before, there are more benign that malignan samples. Stratified sampling was used in order to guarantee the `same proportion in each class` than the one had in the complete data set. 
+```{r message=TRUE, warning=TRUE, include=TRUE}
+library(rsample)
+set.seed(123)
+split_strat <- initial_split(data,prop = 0.8, strata = "diagnosis")
+
+datos_train <- training(split_strat)
+datos_test <- testing(split_strat)
+
+prop.table(table(data$diagnosis))
+table(datos_test$diagnosis) %>% prop.table()
+table(datos_train$diagnosis) %>% prop.table()
+```
+
+# 5. Feature Engineerig
+Some transformations were performed on raw data with the aim of improving the performance of the algorithms.
+
+The recipe object was created in order to be able to pre-process data.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+obj_recipe <- recipe(diagnosis~.,data = datos_train) 
+obj_recipe
+```
+
+
+## Imputation of missing values
+There are `no missing values`, thus there is no need to imputate. 
+```{r}
+sum(is.na(data))
+```
+
+## Variables with variance close to zero
+As seen on the table below, all predictors have a `significant variance`. Hence, no features were removed based on this criteria. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+datatable(nearZeroVar(data,saveMetrics = T), class = 'cell-border stripe') 
+```
+
+## Standardization and scaling
+The boxplots demonstrated the `need for centering and scaling`. The difference in scales can have a great impact in the model. The step_normalize function centers and scales the data. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+obj_recipe <- obj_recipe %>%
+  step_normalize(all_numeric()) 
+
+obj_recipe
+```
+
+Once the recipe object has been created with the preprocessing transformations, they are learned with the training data and applied to the two sets.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+trained_recipe <- obj_recipe %>%  prep(training=datos_train)
+trained_recipe
+
+datos_train_prep <-trained_recipe %>% bake(new_data = datos_train)
+datos_test_prep <- trained_recipe %>% bake(new_data = datos_test)
+```
+A "glimpse" of the values of the features after applying the transformations is shown below. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+glimpse(datos_train_prep)
+```
+
+
+### Mean boxplots after centering and scaling
+The boxplots bellow show the result of the transformed mean features (all other features were also transformed).
+```{r message=FALSE, warning=FALSE, include=TRUE}
+p <- list()
+for (j in colnames(datos_train_prep)[1:10]) {
+  p[[j]] <- ggplot(data=datos_train_prep, aes_string(x="diagnosis", y=j)) + 
+            geom_boxplot(aes(fill=factor(diagnosis))) + guides(fill=FALSE) +
+            theme(axis.title.y = element_text(size=8)) +  
+            geom_jitter(alpha = 0.2, width = 0.2) +
+            scale_fill_manual( values = c("#686868","#9F2042"))
+}
+do.call(grid.arrange, c(p, ncol=5))
+```
+
+
+# 6. Predictive models
+
+The train control for all models was created using the `cross-validation` resampling method with `10 folds`.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+control_train<-trainControl(method = "cv", 
+                           number=10, 
+                           returnResamp = "all", #all resampled performance measures are saved
+                           classProbs = TRUE, # class probabilities are computed
+                           savePredictions = TRUE)
+```
+
+```{r}
+library(vip)
+confMat = function(model){confusionMatrix(predict(model, datos_test_prep %>% dplyr::select(-diagnosis)), datos_test_prep$diagnosis)}
+```
+
+
+## Model 1: Glmnet
+Glmnet fits a generalized linear model via penalized maximum likelihood. The penalization parameters are alpha and lambda, the hypeparameter selection was left by default. These hyperparameters deal with correlated predictors, which is of importance in this project. 
+```{r message=FALSE, warning=FALSE, include=TRUE, cache=TRUE}
+set.seed(123)
+modelo_glm <- train(diagnosis ~.,
+                    method="glmnet", 
+                    family="binomial", 
+                    trControl=control_train, 
+                    data=datos_train_prep, 
+                    metric="Accuracy")
+modelo_glm$bestTune
+ggplot(modelo_glm, highlight = T)
+```
+
+The most important variable is radius_worst.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+vip(modelo_glm, geom = "point")
+confMat(modelo_glm)
+```
+
+## Model 2: Random Forest
+The Random forest is based on constructing a multitude of decision trees. 
+```{r message=FALSE, warning=FALSE, include=TRUE,cache=TRUE}
+set.seed(123)
+hip <- data.frame(mtry=1:30) # Randomly selected predictors
+modelo_rf <-train(diagnosis ~.,
+                  method="rf", 
+                  trControl=control_train, 
+                  data=datos_train_prep, 
+                  tuneGrid=hip,  
+                  metric="Accuracy")
+
+modelo_rf$bestTune
+ggplot(modelo_rf, highlight = T)
+```
+
+The most important variable of the model is area_worst.
+```{r message=FALSE, warning=FALSE, include=TRUE,cache=TRUE}
+vip(modelo_rf, geom = "point")
+confMat(modelo_rf)
+```
+
+## Model 3: Support Vector Machines with Linear and Polynomial Kernel
+SVM training algorithm builds a model that assigns new examples to one category or the other. The classification performed can be linear or non-linear.
+In this case, the hyperparameters are cost, degree and scale. The chosen values are shown on the chunk bellow. 
+The best model was the linear model. 
+```{r message=FALSE, warning=FALSE, include=TRUE,cache=TRUE}
+set.seed(123)
+hip_svmP <- expand.grid(C=c(0.001, 0.01, 0.1, 0.5, 1, 10),degree=c(1,2,3),scale=1)
+modelo_svmPoly <- train(diagnosis ~.,
+                    method = "svmPoly",
+                    trControl = control_train,
+                    data = datos_train_prep,
+                    tuneGrid = hip_svmP,
+                    metric = "Accuracy")
+modelo_svmPoly$bestTune
+ggplot(modelo_svmPoly, highlight = T)
+confMat(modelo_svmPoly)
+```
+
+## Model 4: Naive Bayes
+The Naive Bayes algorithm is based on applying Bayes' theorem with strong (naïve) independence assumptions between the features. The hypermarameters were left by default. 
+The results obtained are not as favorable compared to the other models probably because it doesn't consider any kind of correlation between features. 
+```{r message=FALSE, warning=FALSE, include=TRUE,cache=TRUE}
+set.seed(123)
+modelo_nb <- train(diagnosis ~.,
+                    method = "nb",
+                    trControl = control_train,
+                    data = datos_train_prep,
+                    metric = "Accuracy")
+modelo_nb$bestTune
+ggplot(modelo_nb, highlight = T)
+confMat(modelo_nb)
+```
+
+
+## Model 5: k-Nearest Neighbors
+K-nearest neighbors is an algorithm that classifies new cases based on a similarity measure (distance between neighbors).
+The hyperparameters were also left by default.
+```{r message=FALSE, warning=FALSE, include=TRUE, cache=TRUE}
+set.seed(123)
+modelo_kknn <- train(diagnosis ~.,
+                    method = "kknn",
+                    trControl = control_train,
+                    data = datos_train_prep,
+                    metric = "Accuracy")
+modelo_kknn$bestTune
+ggplot(modelo_kknn, highlight = T)
+confMat(modelo_kknn)
+```
+
+
+## Comparison of first models
+The accuracy and kappa metrics of the 10-folds for each model is shown on the following table. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+modelos <- list(GLM=modelo_glm, RF=modelo_rf, SVM=modelo_svmPoly, NB=modelo_nb, KNN=modelo_kknn)
+results_resamples <- resamples(modelos)
+
+datatable(results_resamples$values)
+```
+The time taken to compute all the folds and the final model for each algorithm is shown on the next table. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+datatable(results_resamples$timings)
+```
+
+Some models obtained an accuracy of 1 on one of the folds. For this reason, in order to decide which model had a better performance the mean accuracy of all folds was computed.
+```{r message=FALSE, warning=FALSE, include=TRUE}
+metricas_resamples <- results_resamples$values %>%
+                         gather(key = "modelo", value = "valor", -Resample) %>%
+                         separate(col = "modelo", into = c("modelo", "metrica"), sep = "~", remove = TRUE)
+
+metricas_resamples <- metricas_resamples %>% filter(metrica == "Accuracy") %>%
+  group_by(modelo) %>% 
+  mutate(media = mean(valor)) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(modelo, media), y = valor, color = modelo)) +
+    geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+    geom_jitter(width = 0.1, alpha = 0.6) +
+    theme_bw() +
+    labs(title = "Validation: Mean Accuracy of the repeated-CV",
+         subtitle = "Models are ordered based on the mean") +
+    coord_flip()
+
+metricas_resamples
+```
+
+The models with the highest accuracy are the `SVM model and the ADA model`. The SVM algorithm has the highest mean and takes `less time` to execute than the ADA algorithm, which is actually the one that takes the longest. Their ROC curves are shown below, the AUC of both models demonstrate their perfect performance.
+
+
+### ROC curves of top models
+```{r message=FALSE, warning=FALSE, include=TRUE, figures-side, fig.show="hold", out.width="50%"}
+library(ROCR)
+# predictions <- predict(modelo_ada, datos_test_prep %>% dplyr::select(-diagnosis))
+# pred <- prediction(as.numeric(predictions),as.numeric(datos_test_prep$diagnosis))
+# perf <- performance(pred,"tpr","fpr")
+# AUC <- as.numeric(performance(pred,"auc")@y.values)
+# 
+# plot(perf,colorize=TRUE)
+# text(0.5, 0.4, paste("AUC = ",round(AUC,4)))
+# title("ADA")
+# grid()
+
+predictions <- predict(modelo_svmPoly, datos_test_prep %>% dplyr::select(-diagnosis))
+pred <- prediction(as.numeric(predictions),as.numeric(datos_test_prep$diagnosis))
+perf <- performance(pred,"tpr","fpr")
+AUC <- as.numeric(performance(pred,"auc")@y.values)
+
+plot(perf,colorize=TRUE)
+text(0.5, 0.4, paste("AUC = ",round(AUC,4)))
+title("SVM")
+grid()
+
+```
+The models obtained are prooved to be accurate and precise.
+Nevertheless, the correlation problem was only addressed on the Glmnet algorithm. Next, a principal component analysis is performed in order to `reduce the dimensionality` of the data which also reduces `multicollinearity`. 
+
+
+# 7. Predictive models with PCA
+The same six type of models were created after applying the PCA transformation to the data. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+obj_recipe <- obj_recipe %>% step_pca(all_numeric(),num_comp = 10)
+
+trained_recipe2 <- obj_recipe %>%  prep(training=datos_train)
+trained_recipe2
+
+datos_train_prep2 <-trained_recipe2 %>% bake(new_data = datos_train)
+datos_test_prep2 <- trained_recipe2 %>% bake(new_data = datos_test)
+```
+
+```{r}
+library(vip)
+confMat2 = function(model){confusionMatrix(predict(model, datos_test_prep2 %>% dplyr::select(-diagnosis)), datos_test_prep2$diagnosis)}
+```
+
+
+<!-- Model 1: GLM with PCA -->
+```{r cache=TRUE}
+set.seed(123)
+modelo_glm2 <- train(diagnosis ~.,
+                    method="glmnet", 
+                    family="binomial", 
+                    trControl=control_train, 
+                    data=datos_train_prep2, 
+                    metric="Accuracy")
+modelo_glm2$bestTune
+ggplot(modelo_glm2, highlight = T)
+vip(modelo_glm2, geom = "point")
+confMat2(modelo_glm2)
+```
+
+<!-- Model 2: Random Forest with PCA -->
+```{r cache=TRUE}
+set.seed(123)
+hip <- data.frame(mtry=1:10) # Randomly selected predictors
+modelo_rf2 <-train(diagnosis ~.,
+                  method="rf", 
+                  trControl=control_train, 
+                  data=datos_train_prep2, 
+                  tuneGrid=hip,  
+                  metric="Accuracy")
+
+modelo_rf2$bestTune
+ggplot(modelo_rf2, highlight = T)
+vip(modelo_rf2, geom = "point")
+confMat2(modelo_rf2)
+```
+
+<!-- Model 3: AdaBoost with PCA -->
+```{r eval=FALSE, cache=TRUE, include=FALSE}
+set.seed(123)
+modelo_ada2 <-train(diagnosis ~.,
+                   method="adaboost", 
+                   trControl=control_train, 
+                   data=datos_train_prep2, 
+                   metric="Accuracy")
+modelo_ada2$bestTune
+ggplot(modelo_ada2, highlight = T)
+confMat2(modelo_ada2)
+```
+
+<!-- Model 4: Support Vector Machines with Linear and Polynomial Kernel with PCA -->
+```{r cache=TRUE}
+set.seed(123)
+hip_svmP <- expand.grid(C=c(0.001, 0.01, 0.1, 0.5, 1, 10),degree=c(1,2,3),scale=1)
+modelo_svmPoly2 <- train(diagnosis ~.,
+                    method = "svmPoly",
+                    trControl = control_train,
+                    data = datos_train_prep2,
+                    tuneGrid = hip_svmP,
+                    metric = "Accuracy")
+modelo_svmPoly2$bestTune
+ggplot(modelo_svmPoly2, highlight = T)
+confMat2(modelo_svmPoly2)
+```
+
+<!-- Model 5: Naive Bayes with PCA -->
+```{r cache=TRUE}
+set.seed(123)
+modelo_nb2 <- train(diagnosis ~.,
+                    method = "nb",
+                    trControl = control_train,
+                    data = datos_train_prep2,
+                    #tuneGrid = hp_nb,
+                    metric = "Accuracy")
+modelo_nb2$bestTune
+ggplot(modelo_nb2, highlight = T)
+confMat2(modelo_nb2)
+```
+
+<!-- Model 6: k-Nearest Neighbors with PCA -->
+```{r cache=TRUE}
+set.seed(123)
+modelo_kknn2 <- train(diagnosis ~.,
+                    method = "kknn",
+                    trControl = control_train,
+                    data = datos_train_prep2,
+                    metric = "Accuracy")
+modelo_kknn2$bestTune
+ggplot(modelo_kknn2, highlight = T)
+confMat2(modelo_kknn2)
+```
+
+
+## Comparison of models with PCA
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+library(rlist)
+modelos2 <- list.append(modelos, GLMpca=modelo_glm2, RFpca=modelo_rf2, ADApca=modelo_ada2, SVMpca=modelo_svmPoly2, NBpca=modelo_nb2, KNNpca=modelo_kknn2)
+results_resamples2 <- resamples(modelos2)
+```
+Metrics...
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+datatable(results_resamples2$values)
+```
+Time...
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+datatable(results_resamples2$timings)
+```
+
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+metricas_resamples2 <- results_resamples2$values %>%
+                         gather(key = "modelo", value = "valor", -Resample) %>%
+                         separate(col = "modelo", into = c("modelo", "metrica"), sep = "~", remove = TRUE)
+
+metricas_resamples2 <- metricas_resamples2 %>% filter(metrica == "Accuracy") %>%
+  group_by(modelo) %>% 
+  mutate(media = mean(valor)) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(modelo, media), y = valor, color = modelo)) +
+    geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+    geom_jitter(width = 0.1, alpha = 0.6) +
+    theme_bw() +
+    labs(title = "Validation: Mean Accuracy of the repeated-CV",
+         subtitle = "Models are ordered based on the mean") +
+    coord_flip()
+```
+
+As seen on the graph below, the SVM model and the ADA model still outperform all other models. The first SVM model still has the highest accuracy mean indicating that reducing dimensionality does not necessarily improve the model, regardless of the number of variables or the correlation. If execution time is taken into account the GLMpca model is much faster and also has a good performance.
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+metricas_resamples2
+```
+
+Finally, the top two algorithms (SVM and ADA) were again used to create two models that take into account the class imbalance. All the features were taken into account. 
+
+# 8. Best predictive models with weights
+The weight of each class has to be computed before implementing the algorithm. 
+```{r message=FALSE, warning=FALSE, include=TRUE}
+datos_train_prep <- datos_train_prep[order(datos_train_prep$diagnosis),]
+  datos_train_prep[,order("diagnosis")]
+n1train <- length(which(datos_train_prep$diagnosis=="B"))
+n2train <- length(which(datos_train_prep$diagnosis=="M"))
+ntrain<- dim(data)[1]
+
+n_classes <- 2
+weight1 <- ntrain/(n_classes*n1train)
+weight2 <- ntrain/(n_classes*n2train)
+
+allWeights <- c(rep(weight1,n1train),rep(weight2,n2train))
+```
+
+
+<!-- ### SVM with weigths -->
+```{r }
+set.seed(123)
+hip_svmP <- expand.grid(C=c(0.001, 0.01, 0.1, 0.5, 1, 10),degree=c(1,2,3),scale=1)
+modelo_svmPoly3 <- train(diagnosis ~.,
+                    method = "svmPoly",
+                    trControl = control_train,
+                    data = datos_train_prep,
+                    tuneGrid = hip_svmP,
+                    metric = "Accuracy",
+                    weights=allWeights)
+modelo_svmPoly3$bestTune
+ggplot(modelo_svmPoly3, highlight = T)
+confMat(modelo_svmPoly3)
+```
+
+
+<!-- ### ADA with weigths -->
+```{r  eval=FALSE,cache=TRUE}
+set.seed(123)
+modelo_ada3 <- train(diagnosis ~.,
+                    method="glmnet", 
+                    family="binomial", 
+                    trControl=control_train, 
+                    data=datos_train_prep, 
+                    metric="Accuracy",
+                    weights=allWeights)
+modelo_ada3$bestTune
+ggplot(modelo_ada3, highlight = T)
+confMat(modelo_ada3)
+```
+
+
+## Final comparison 
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+modelos3 <- list.append(modelos2, ADAweights=modelo_ada3,SVMweights=modelo_svmPoly3)
+results_resamples3 <- resamples(modelos3)
+```
+Metrics...
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+datatable(results_resamples3$values)
+```
+Time...
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+datatable(results_resamples3$timings)
+```
+
+```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+metricas_resamples3 <- results_resamples3$values %>%
+                         gather(key = "modelo", value = "valor", -Resample) %>%
+                         separate(col = "modelo", into = c("modelo", "metrica"), sep = "~", remove = TRUE)
+
+metricas_resamples3 <- metricas_resamples3 %>% filter(metrica == "Accuracy") %>%
+  group_by(modelo) %>% 
+  mutate(media = mean(valor)) %>%
+  ungroup() %>%
+  ggplot(aes(x = reorder(modelo, media), y = valor, color = modelo)) +
+    geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+    geom_jitter(width = 0.1, alpha = 0.6) +
+    theme_bw() +
+    labs(title = "Validation: Mean Accuracy of the repeated-CV",
+         subtitle = "Models are ordered based on the mean") +
+    coord_flip()
+
+metricas_resamples3
+```
+
+Surprisingly, the SVM model that takes into account the proportion of samples in each class has the same accuracy mean as the SVM model but takes a bit less time to compute.
+
+# 9. Conclusions
+As seen, the algorithm that best predicted the outcome of this dataset was SVM and the addition of weights had a positive impact on the model. The ADA model also has an outstanding performance but takes a lot of time. The time of execution is of great importance in some applications. So if time is relavant, the Glmnet with PCA is also an appropiate choice. Reducing the number of features, reduces the time of execution of the algorithm. The Glmnet model also has high accuracy and high AUC in all folds performed. In the future, other algorithms can be tested or other hyperparameters can be chosen in order to find better results. Other approaches can also be taken in order to deal with multicollinearity.
+
