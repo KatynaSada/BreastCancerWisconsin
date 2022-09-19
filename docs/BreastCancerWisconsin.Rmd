@@ -44,13 +44,15 @@ options("citation_format" = "pandoc")
 ```
 
 # 1. Introduction
-<img src="./files/imagen1.jpg" align="right" /><p>Cancer is the second leading cause of death globally. In 2018 there were approximately 9,6 million deaths worldwide.These numbers are rising and on 2040 the expectation is to have up to 29,5 million new cases. Regardless of the type of cancer present, cancer cells are distinguished for growing out of control and becoming invasive [(WHO)](https://www.who.int/news-room/fact-sheets/detail/cancer). They harness the space and nutrients that healthy organs require, that could then trigger the malfunctioning of certain body systems [(NIH)](https://www.cancer.gov/about- cancer/advanced-cancer/care-choices/care-fact-sheet). 
+<img src="./files/imagen1.jpg" align="right" /><p>
+Cancer is the second leading cause of death worldwide. In 2018, there were approximately 9.6 million deaths worldwide. These numbers are on the rise and by 2040 there are expected to be as many as 29.5 million new cases. Regardless of the type of cancer present, cancer cells are distinguished by growing out of control and becoming invasive
+[(WHO)](https://www.who.int/news-room/fact-sheets/detail/cancer). They harness the space and nutrients that healthy organs require, that could then trigger the malfunctioning of certain body systems [(NIH)](https://www.cancer.gov/about- cancer/advanced-cancer/care-choices/care-fact-sheet). 
 
 Breast cancer is a type of cancer that starts in the breast and occurs almost entirely in women, `2,1 million of new cases` were estimated on 2018 [(WHO)](https://www.who.int/news-room/fact-sheets/detail/cancer). A total of `44,130 deaths` from breast cancer are estimated to occur on 2021. [(ASCO)](https://www.cancer.net/cancer-types/breast-cancer/statistics#:~:text=It%20is%20estimated%20that%2044%2C130,after%20the%20cancer%20is%20found.).
 
 There is a need to search for new techniques in order to correctly diagnose and treat breast cancer. 
 
-The aim of this project is to develop an algorithm that correctly predicts if a `sample of breast cancer cell nucleus is benig or malignant`. The aforementioned is going to be performed by comparing various machine learning algorithms taking into account its accuracy and its time of execution. 
+The objective of this project is to develop an algorithm that correctly predicts whether a `breast cancer cell nucleus sample is benign or malignant`. For this purpose, several machine learning algorithms will be compared taking into account their accuracy and execution time. 
 
 # 2. Dataset 
 This dataset is hosted on Kaggle ([Breast Cancer Wisconsin (Diagnostic) Data Set](https://www.kaggle.com/uciml/breast-cancer-wisconsin-data)), and it was from [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+%28Diagnostic%29). 
@@ -402,21 +404,21 @@ metricas_resamples <- metricas_resamples %>% filter(metrica == "Accuracy") %>%
 metricas_resamples
 ```
 
-The models with the highest accuracy are the `SVM model and the ADA model`. The SVM algorithm has the highest mean and takes `less time` to execute than the ADA algorithm, which is actually the one that takes the longest. Their ROC curves are shown below, the AUC of both models demonstrate their perfect performance.
+The models with the highest accuracy are the `SVM models and the GLM models`. The SVM algorithm has the highest mean but takes more time to execute than the GLM algorithm, which is actually the one that takes the shortest. Their ROC curves are shown below, the AUC of both models demonstrate their perfect performance.
 
 
 ### ROC curves of top models
 ```{r message=FALSE, warning=FALSE, include=TRUE, figures-side, fig.show="hold", out.width="50%"}
 library(ROCR)
-# predictions <- predict(modelo_ada, datos_test_prep %>% dplyr::select(-diagnosis))
-# pred <- prediction(as.numeric(predictions),as.numeric(datos_test_prep$diagnosis))
-# perf <- performance(pred,"tpr","fpr")
-# AUC <- as.numeric(performance(pred,"auc")@y.values)
-# 
-# plot(perf,colorize=TRUE)
-# text(0.5, 0.4, paste("AUC = ",round(AUC,4)))
-# title("ADA")
-# grid()
+predictions <- predict(modelo_glm, datos_test_prep %>% dplyr::select(-diagnosis))
+pred <- prediction(as.numeric(predictions),as.numeric(datos_test_prep$diagnosis))
+perf <- performance(pred,"tpr","fpr")
+AUC <- as.numeric(performance(pred,"auc")@y.values)
+
+plot(perf,colorize=TRUE)
+text(0.5, 0.4, paste("AUC = ",round(AUC,4)))
+title("Glmnet")
+grid()
 
 predictions <- predict(modelo_svmPoly, datos_test_prep %>% dplyr::select(-diagnosis))
 pred <- prediction(as.numeric(predictions),as.numeric(datos_test_prep$diagnosis))
@@ -431,7 +433,6 @@ grid()
 ```
 The models obtained are prooved to be accurate and precise.
 Nevertheless, the correlation problem was only addressed on the Glmnet algorithm. Next, a principal component analysis is performed in order to `reduce the dimensionality` of the data which also reduces `multicollinearity`. 
-
 
 # 7. Predictive models with PCA
 The same six type of models were created after applying the PCA transformation to the data. 
@@ -449,7 +450,6 @@ datos_test_prep2 <- trained_recipe2 %>% bake(new_data = datos_test)
 library(vip)
 confMat2 = function(model){confusionMatrix(predict(model, datos_test_prep2 %>% dplyr::select(-diagnosis)), datos_test_prep2$diagnosis)}
 ```
-
 
 <!-- Model 1: GLM with PCA -->
 ```{r cache=TRUE}
@@ -483,20 +483,7 @@ vip(modelo_rf2, geom = "point")
 confMat2(modelo_rf2)
 ```
 
-<!-- Model 3: AdaBoost with PCA -->
-```{r eval=FALSE, cache=TRUE, include=FALSE}
-set.seed(123)
-modelo_ada2 <-train(diagnosis ~.,
-                   method="adaboost", 
-                   trControl=control_train, 
-                   data=datos_train_prep2, 
-                   metric="Accuracy")
-modelo_ada2$bestTune
-ggplot(modelo_ada2, highlight = T)
-confMat2(modelo_ada2)
-```
-
-<!-- Model 4: Support Vector Machines with Linear and Polynomial Kernel with PCA -->
+<!-- Model 3: Support Vector Machines with Linear and Polynomial Kernel with PCA -->
 ```{r cache=TRUE}
 set.seed(123)
 hip_svmP <- expand.grid(C=c(0.001, 0.01, 0.1, 0.5, 1, 10),degree=c(1,2,3),scale=1)
@@ -511,7 +498,7 @@ ggplot(modelo_svmPoly2, highlight = T)
 confMat2(modelo_svmPoly2)
 ```
 
-<!-- Model 5: Naive Bayes with PCA -->
+<!-- Model 4: Naive Bayes with PCA -->
 ```{r cache=TRUE}
 set.seed(123)
 modelo_nb2 <- train(diagnosis ~.,
@@ -525,7 +512,7 @@ ggplot(modelo_nb2, highlight = T)
 confMat2(modelo_nb2)
 ```
 
-<!-- Model 6: k-Nearest Neighbors with PCA -->
+<!-- Model 5: k-Nearest Neighbors with PCA -->
 ```{r cache=TRUE}
 set.seed(123)
 modelo_kknn2 <- train(diagnosis ~.,
@@ -540,22 +527,21 @@ confMat2(modelo_kknn2)
 
 
 ## Comparison of models with PCA
-
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 library(rlist)
-modelos2 <- list.append(modelos, GLMpca=modelo_glm2, RFpca=modelo_rf2, ADApca=modelo_ada2, SVMpca=modelo_svmPoly2, NBpca=modelo_nb2, KNNpca=modelo_kknn2)
+modelos2 <- list.append(modelos, GLMpca=modelo_glm2, RFpca=modelo_rf2, SVMpca=modelo_svmPoly2, NBpca=modelo_nb2, KNNpca=modelo_kknn2)
 results_resamples2 <- resamples(modelos2)
 ```
 Metrics...
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+```{r message=FALSE, warning=FALSE, include=TRUE}
 datatable(results_resamples2$values)
 ```
 Time...
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+```{r message=FALSE, warning=FALSE, include=TRUE}
 datatable(results_resamples2$timings)
 ```
 
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+```{r message=FALSE, warning=FALSE, include=TRUE}
 metricas_resamples2 <- results_resamples2$values %>%
                          gather(key = "modelo", value = "valor", -Resample) %>%
                          separate(col = "modelo", into = c("modelo", "metrica"), sep = "~", remove = TRUE)
@@ -573,12 +559,12 @@ metricas_resamples2 <- metricas_resamples2 %>% filter(metrica == "Accuracy") %>%
     coord_flip()
 ```
 
-As seen on the graph below, the SVM model and the ADA model still outperform all other models. The first SVM model still has the highest accuracy mean indicating that reducing dimensionality does not necessarily improve the model, regardless of the number of variables or the correlation. If execution time is taken into account the GLMpca model is much faster and also has a good performance.
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+As seen on the graph below, the SVM model still outperforms all other models, indicating that reducing dimensionality does not necessarily improve the model regardless of the number of variables or the correlation. If execution time is taken into account the GLMpca model is much faster and also has a good performance.
+```{r message=FALSE, warning=FALSE, include=TRUE}
 metricas_resamples2
 ```
 
-Finally, the top two algorithms (SVM and ADA) were again used to create two models that take into account the class imbalance. All the features were taken into account. 
+Finally, the top two algorithms (SVM and GLM) were again used to create two models that take into account the class imbalance. All the features were taken into account. 
 
 # 8. Best predictive models with weights
 The weight of each class has to be computed before implementing the algorithm. 
@@ -614,37 +600,37 @@ confMat(modelo_svmPoly3)
 ```
 
 
-<!-- ### ADA with weigths -->
-```{r  eval=FALSE,cache=TRUE}
+<!-- ### GLM with weigths -->
+```{r cache=TRUE}
 set.seed(123)
-modelo_ada3 <- train(diagnosis ~.,
+modelo_glm3 <- train(diagnosis ~.,
                     method="glmnet", 
                     family="binomial", 
                     trControl=control_train, 
                     data=datos_train_prep, 
                     metric="Accuracy",
                     weights=allWeights)
-modelo_ada3$bestTune
-ggplot(modelo_ada3, highlight = T)
-confMat(modelo_ada3)
+modelo_glm3$bestTune
+ggplot(modelo_glm3, highlight = T)
+confMat(modelo_glm3)
 ```
 
 
 ## Final comparison 
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
-modelos3 <- list.append(modelos2, ADAweights=modelo_ada3,SVMweights=modelo_svmPoly3)
+```{r message=FALSE, warning=FALSE, include=TRUE}
+modelos3 <- list.append(modelos2, GLMweights=modelo_glm3,SVMweights=modelo_svmPoly3)
 results_resamples3 <- resamples(modelos3)
 ```
 Metrics...
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+```{r  message=FALSE, warning=FALSE, include=TRUE}
 datatable(results_resamples3$values)
 ```
 Time...
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+```{r  message=FALSE, warning=FALSE, include=TRUE}
 datatable(results_resamples3$timings)
 ```
 
-```{r  eval=FALSE,message=FALSE, warning=FALSE, include=TRUE}
+```{r  message=FALSE, warning=FALSE, include=TRUE}
 metricas_resamples3 <- results_resamples3$values %>%
                          gather(key = "modelo", value = "valor", -Resample) %>%
                          separate(col = "modelo", into = c("modelo", "metrica"), sep = "~", remove = TRUE)
@@ -667,5 +653,5 @@ metricas_resamples3
 Surprisingly, the SVM model that takes into account the proportion of samples in each class has the same accuracy mean as the SVM model but takes a bit less time to compute.
 
 # 9. Conclusions
-As seen, the algorithm that best predicted the outcome of this dataset was SVM and the addition of weights had a positive impact on the model. The ADA model also has an outstanding performance but takes a lot of time. The time of execution is of great importance in some applications. So if time is relavant, the Glmnet with PCA is also an appropiate choice. Reducing the number of features, reduces the time of execution of the algorithm. The Glmnet model also has high accuracy and high AUC in all folds performed. In the future, other algorithms can be tested or other hyperparameters can be chosen in order to find better results. Other approaches can also be taken in order to deal with multicollinearity.
+As seen, the algorithm that best predicted the outcome of this data set was the SVM, the addition of weights had a positive impact on the model. The GLM model also has outstanding performance and takes less time. Run time is of great importance in some applications. Therefore, if time is relevant, the Glmnet with PCA is also a suitable choice. By reducing the number of features, the execution time of the algorithm is reduced. The Glmnet model also has a high accuracy and high AUC on all performed folds. In the future, other algorithms can be tested or other hyperparameters can be chosen to find better results. Other approaches can also be adopted to deal with multicollinearity.
 
